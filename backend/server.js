@@ -8,7 +8,7 @@ import {v2 as cloudinary} from "cloudinary";
 import authRoutes from "./routes/auth.routes.js"; //always add .js at the end when using import, otherwise it will throw an error
 import userRoutes from "./routes/user.routes.js";
 import postRoutes from "./routes/post.routes.js";
-
+import notificationRoutes from "./routes/notification.routes.js";
 
 //utility
 import connectMongoDB from "./db/connectMongoDB.js";
@@ -36,6 +36,7 @@ app.use(cookieParser()); //middleware to parse cookies from incoming requests (i
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 
 app.listen(PORT, () => {
