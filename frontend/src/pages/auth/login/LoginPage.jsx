@@ -1,30 +1,93 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import XSvg from "../../../components/svgs/X";
 
 import { MdOutlineMail } from "react-icons/md";
 import { MdPassword } from "react-icons/md";
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-hot-toast";
+
 const LoginPage = () => 
 {
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const [formData, setFormData] = useState({
 		username: "",
 		password: "",
 	});
 
+	const {mutate:loginMutation, isPending, isError, error} = useMutation({
+		mutationFn: async ({ username, password }) => 
+		{
+			const res = await fetch("/api/auth/login", 
+			{
+				method: "POST",
+				headers: 
+				{
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ username, password }),
+			});
+			const responseBody = await res.text();
+			let data;
+
+			if (responseBody) 
+			{
+				try 
+				{
+					data = JSON.parse(responseBody);
+				} 
+				catch 
+				{
+					if (res.ok) 
+					{
+						throw new Error("The login server returned an invalid response.");
+					}
+				}
+			}
+
+			if (!res.ok) 
+			{
+				const message =
+					data?.error ||
+					(res.status === 502 || res.status === 503
+						? "Login service is unavailable. Make sure the backend server is running."
+						: `Failed to login (HTTP ${res.status}).`);
+				throw new Error(message);
+			}
+
+			if (!data) 
+			{
+				throw new Error("The login server returned an empty response.");
+			}
+
+			if (data.error) 
+			{
+				throw new Error(data.error);
+			}
+
+			return data;
+		},
+		onSuccess: (user) => 
+		{
+			queryClient.setQueryData(["authUser"], user);
+			toast.success("Login successful!");
+		},
+		onError: (error) => toast.error(error.message),
+	});
+
 	const handleSubmit = (e) => 
-  {
+	{
 		e.preventDefault();
-		console.log(formData);
+		loginMutation(formData);
 	};
 
 	const handleInputChange = (e) => 
-  {
+	{
 		setFormData({ ...formData, [e.target.name]: e.target.value });
 	};
-
-	const isError = false;
 
 	return (
 		<div className='max-w-screen-xl mx-auto flex h-screen'>
@@ -69,8 +132,8 @@ const LoginPage = () =>
 
 					</label>
 
-					<button className='btn rounded-full btn-primary text-white'>Login</button>
-					{isError && <p className='text-red-500'>Something went wrong</p>}
+					<button className='btn rounded-full btn-primary text-white'>{isPending ? "Logging in..." : "Login"}</button>
+					{isError && <p className='text-red-500'>{error.message}</p>}
 				</form>
 
 				<div className='flex flex-col gap-2 mt-4'>
