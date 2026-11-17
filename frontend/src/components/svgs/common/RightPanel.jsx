@@ -1,8 +1,35 @@
 import { Link } from "react-router-dom";
-import { USERS_FOR_RIGHT_PANEL } from "../../../utils/db/dummy";
-
+import { useQuery } from "@tanstack/react-query"
 const RightPanel = () => 
 {
+	const {data:suggestedUsers, isLoading} = useQuery({
+		queryKey: ["suggestedUsers"],
+		queryFn: async () =>
+		{
+			try
+			{
+				const res = await fetch("/api/users/suggested");
+				const data = await res.json();
+
+				if(!res.ok)
+				{
+					throw new Error(data.message || "Something went wrong");
+				}
+				return data;
+
+			}
+			catch(error)
+			{
+				throw new Error(error.message);
+			}
+		}
+	});
+
+	if(suggestedUsers?.length === 0)
+	{
+		<div className='md:w-64 w-0'></div>;
+	}
+	
 	return (
 		<div className='hidden lg:block w-72 shrink-0 my-4'>
 
@@ -10,7 +37,7 @@ const RightPanel = () =>
 				<p className='font-bold'>Who to follow</p>
 				<div className='flex flex-col gap-4'>
 
-					{USERS_FOR_RIGHT_PANEL.map((user) => (
+					{suggestedUsers?.map((user) => (
 							
 						<Link
 								to={`/profile/${user.username}`}

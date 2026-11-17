@@ -13,9 +13,6 @@ import notificationRoutes from "./routes/notification.routes.js";
 //utility
 import connectMongoDB from "./db/connectMongoDB.js";
 
-
-
-
 dotenv.config();
 
 cloudinary.config({
@@ -27,7 +24,7 @@ cloudinary.config({
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(express.json()); //middleware to parse JSON bodies of incoming requests (ie. make json usable as req.body in js)
+app.use(express.json({ limit:"5mb" })); //middleware to parse JSON bodies of incoming requests (ie. make json usable as req.body in js), and the limit shouldn't be too large to avoid DoS attacks
 app.use(express.urlencoded({ extended: true })); //middleware to parse URL-encoded bodies of incoming requests (ie. make form data usable as req.body in js)
 
 
