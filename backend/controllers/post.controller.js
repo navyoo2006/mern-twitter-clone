@@ -136,23 +136,21 @@ export const likeUnlikePost = async (req, res) =>
 
         if (!post)
         {
-            return res.response(404).json({error: "Post not found"})
+            return res.status(404).json({error: "Post not found"})
 
         }
 
-        const userLikedPost = post.likes.includes(userId);
+        const userLikedPost = post.likes.some((likedUserId) => likedUserId.toString() === userId.toString());
 
         if(userLikedPost)
         {
             //Unlike the post since they already liked it
             await Post.updateOne({_id: postId}, { $pull: {likes: userId}});
-            await Post.updateOne({_id: userId}, { $pull: { likedPosts: postId } });
+            await User.updateOne({_id: userId}, { $pull: { likedPosts: postId } });
 
             const updatedLikes = post.likes.filter((id) => id.toString() !== userId.toString());
 
-            res.status(200).json(updatedLikes);
-
-            res.status(200).json({message: "Unliked post successfully"});
+            return res.status(200).json(updatedLikes);
         }
 
         else
@@ -241,7 +239,7 @@ export const getLikedPosts = async (req, res) =>
         {
             return res.status(404).json({error: "User not found"})
         }
-        const likedPosts = await Post.find({ _id: {$in: user.likedPosts}})
+        const likedPosts = await Post.find({ likes: userId })
         .populate
         (
             {
@@ -337,6 +335,13 @@ export const getUserPosts = async (req, res) =>
         (
             { 
                 createdAt: -1
+            }
+        )
+        .populate
+        (
+            {
+                path: "user",
+                select: "-password",
             }
         )
         .populate

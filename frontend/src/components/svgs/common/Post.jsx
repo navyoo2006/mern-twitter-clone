@@ -5,7 +5,7 @@ import { FaRegBookmark } from "react-icons/fa6";
 import { FaTrash } from "react-icons/fa";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 
 import LoadingSpinner from "./LoadingSpinner";
@@ -14,15 +14,13 @@ import { formatPostDate } from "../../../utils/date";
 const Post = ({ post }) => 
 {
 	const [comment, setComment] = useState("");
-	const {data:authUser} = useQuery({
-		queryKey: ["authUser"]
-	});
 	const queryClient = useQueryClient();
+	const authUser = queryClient.getQueryData(["authUser"]);
 	
 	const postOwner = post.user;
-	const isLiked = post.likes.includes(authUser._id);
+	const isLiked = Boolean(authUser && post.likes.includes(authUser._id));
 
-	const isMyPost = authUser._id === post.user._id;
+	const isMyPost = authUser?._id === post.user?._id;
 
 	const formattedDate = formatPostDate(post.createdAt);
 
@@ -87,11 +85,13 @@ const Post = ({ post }) =>
 
 		onSuccess:(updatedLikes) =>
 		{
-			// Replace the post's likes with the updated array returned by the backend so the UI stays in sync
-			//cannot use the invalidate queries method
-
-			queryClient.setQueryData(["posts"], oldData => 
+			queryClient.setQueriesData({ queryKey: ["posts"] }, oldData =>
 			{
+				if (!Array.isArray(oldData))
+				{
+					return oldData;
+				}
+
 				return oldData.map(p => 
 				{
 					if(p._id === post._id)
@@ -101,6 +101,8 @@ const Post = ({ post }) =>
 					return p;
 				});
 			});
+
+			queryClient.invalidateQueries({ queryKey: ["posts"] });
 		},
 		onError:(error) =>
 		{
