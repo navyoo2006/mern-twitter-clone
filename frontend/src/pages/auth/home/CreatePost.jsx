@@ -1,17 +1,19 @@
+import useAuthUser from "../../../hooks/useAuthUser";
 import { CiImageOn } from "react-icons/ci";
-import { BsEmojiSmileFill } from "react-icons/bs";
 import { useRef, useState } from "react";
 import { IoCloseSharp } from "react-icons/io5";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import EmojiPicker from "./EmojiPicker";
 
 const CreatePost = () => 
 {
 	const [text, setText] = useState("");
 	const [img, setImg] = useState(null);
 	const imgRef = useRef(null);
+	const textRef = useRef(null);
 
-	const {data:authUser} = useQuery({queryKey: ["authUser"]});
+	const {data:authUser} = useAuthUser();
 	const queryClient = useQueryClient();
 
 	const {mutate:createPost, isPending, isError, error} = useMutation({
@@ -39,7 +41,7 @@ const CreatePost = () =>
 			}
 			catch(error)
 			{
-				throw new Error(error)
+				throw new Error(error.message)
 
 			}
 		},
@@ -51,7 +53,8 @@ const CreatePost = () =>
 			toast.success("Post created successfully");
 			
 			//invalidate query to update the UI
-			queryClient.invalidateQueries({queryKey: ['posts']})
+			queryClient.invalidateQueries({queryKey: ['posts']});
+			queryClient.invalidateQueries({queryKey: ['userProfile']});
 
 		}
 	})
@@ -60,6 +63,19 @@ const CreatePost = () =>
 	{
 		e.preventDefault();
 		createPost({text, img});
+	};
+
+	const handleEmojiSelect = (emoji) =>
+	{
+		const textarea = textRef.current;
+		const start = textarea.selectionStart;
+		const end = textarea.selectionEnd;
+		setText(text.slice(0, start) + emoji + text.slice(end));
+		requestAnimationFrame(() =>
+		{
+			textarea.focus();
+			textarea.setSelectionRange(start + emoji.length, start + emoji.length);
+		});
 	};
 
 	const handleImgChange = (e) => 
@@ -90,10 +106,11 @@ const CreatePost = () =>
         
 			</div>
 
-			<form className='flex flex-col gap-2 w-full' onSubmit={handleSubmit}>
+			<form className='group flex min-w-0 flex-1 flex-col gap-2' onSubmit={handleSubmit}>
 
 				<textarea
-					className='textarea w-full p-0 text-lg resize-none border-none bg-transparent text-white placeholder:text-slate-500 focus:bg-transparent focus:outline-none border-gray-800'
+					ref={textRef}
+					className='block min-h-28 w-full field-sizing-content resize-none border-0 bg-transparent px-3 pt-4 pb-3 text-left text-xl leading-relaxed text-white placeholder:text-neutral-400 shadow-none outline-none focus:outline-none focus:ring-0'
 					placeholder='What is happening?!'
 					value={text}
 					onChange={(e) => setText(e.target.value)}
@@ -116,7 +133,7 @@ const CreatePost = () =>
 
 				)}
 
-				<div className='flex justify-between border-t py-2 border-t-gray-700'>
+				<div className='flex items-center justify-between border-t border-[#2f3336] py-2 transition-colors group-focus-within:border-[#1d9bf0]'>
 
 					<div className='flex gap-1 items-center'>
 
@@ -125,18 +142,18 @@ const CreatePost = () =>
 							onClick={() => imgRef.current.click()}
 						/>
 
-						<BsEmojiSmileFill className='fill-primary w-5 h-5 cursor-pointer' />
+						<EmojiPicker onSelect={handleEmojiSelect} />
 					</div>
 
 					<input type='file' accept='image/*' hidden ref={imgRef} onChange={handleImgChange} />
 
-					<button className='btn btn-primary rounded-full btn-sm text-white px-4'>
+					<button disabled={isPending} className='btn btn-primary rounded-full btn-sm text-white px-4'>
 						{isPending ? "Posting..." : "Post"}
 					</button>
           
 				</div>
 
-				{isError && <div className='text-red-500'>
+				{isError && <div className='text-center text-sm leading-relaxed text-red-500'>
 				{error.message}
 				</div>}
 			</form>
