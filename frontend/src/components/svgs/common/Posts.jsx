@@ -1,3 +1,4 @@
+import useAuthUser from "../../../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
 import Post from "./Post";
 import PostSkeleton from "../skeletons/PostSkeleton";
@@ -23,26 +24,27 @@ const Posts = ({feedType, username, userId}) =>
 
 	const POST_ENDPOINT = getPostEndpoint();
 
-	const {data:posts, isLoading, isRefetching} = useQuery({
+	const {data:authUser} = useAuthUser();
+	const {data:posts, isLoading, isRefetching, isError, error, refetch} = useQuery({
 
-		queryKey: ["posts", POST_ENDPOINT],
-		queryFn: async () =>
+		queryKey: ["posts", POST_ENDPOINT, authUser?._id],
+		queryFn: async ({ signal }) =>
 		{
 			try
 			{
-				const res = await fetch(POST_ENDPOINT);
+				const res = await fetch(POST_ENDPOINT, { signal });
 				const data = await res.json();
 
 				if (!res.ok)
 				{
-					throw new Error(data.message || "Error fetching posts");
+					throw new Error(data.error || "Error fetching posts");
 				}
 
 				return data;
 			}
 			catch(error)
 			{
-				throw new Error("Error fetching posts");
+				throw new Error(error.message || "Error fetching posts");
 			}
 
 		},
@@ -52,6 +54,7 @@ const Posts = ({feedType, username, userId}) =>
 	return (
 
 		<>
+			{isError && <div role="alert" className="p-4 text-white">{error.message} <button type="button" className="cursor-pointer underline" onClick={() => refetch()}>Retry</button></div>}
 			{(isLoading || isRefetching) && (
 				<div className='flex flex-col justify-center'>
 					<PostSkeleton />

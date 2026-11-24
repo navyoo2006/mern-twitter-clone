@@ -5,6 +5,8 @@ import {v2 as cloudinary} from "cloudinary";
 //models
 import User from "../models/user.model.js"; 
 import Notification from "../models/notification.model.js";
+import Post from "../models/post.model.js";
+import { PUBLIC_USER_FIELDS, ownUserResponse } from "../lib/utils/userFields.js";
 
 
 
@@ -15,14 +17,15 @@ export const getUserProfile = async (req, res) =>
 
     try
     {
-        const user = await User.findOne({username}).select("-password");
+        const user = await User.findOne({username}).select(PUBLIC_USER_FIELDS);
 
         if (!user)
         {
             return res.status(404).json({error: "User not found"});
         }
 
-        res.status(200).json(user);
+        const postCount = await Post.countDocuments({ user: user._id });
+        res.status(200).json({ ...user.toObject(), postCount });
     }
 
     catch (error)
@@ -47,12 +50,12 @@ export const followUnfollowUser = async (req, res) =>
             return res.status(400).json({error: "You cannot follow/unfollow yourself"});
         }
         
-        if (!userToModify)
+        if (!userToModify || !currentUser)
         {
             return res.status(404).json({error: "User not found"});
         }
 
-        const isFollowing = currentUser.following.includes(id);
+        const isFollowing = currentUser.following.some((followedId) => followedId.toString() === id);
 
         // Unfollow the user
         if (isFollowing)
@@ -66,7 +69,7 @@ export const followUnfollowUser = async (req, res) =>
             //TODO: Return the id of the user as a response
 
 
-            res.status(200).json({message: "User unfollowed successfully"});
+            return res.status(200).json({message: "User unfollowed successfully"});
         }
 
         // Follow
@@ -74,9 +77,9 @@ export const followUnfollowUser = async (req, res) =>
         {
             //use push to add a follower to the array
 
-            await User.findByIdAndUpdate(id, { $push: { followers: req.user._id } });
+            await User.findByIdAndUpdate(id, { $addToSet: { followers: req.user._id } });
 
-            await User.findByIdAndUpdate(req.user._id, { $push: { following: id } });
+            await User.findByIdAndUpdate(req.user._id, { $addToSet: { following: id } });
 
             const newNotification = new Notification({
                 type: "follow",
@@ -89,10 +92,9 @@ export const followUnfollowUser = async (req, res) =>
             //TODO: Return the id of the user as a response
 
             //send follow notification to the user being followed
-            res.status(200).json({message: "User followed successfully"});
+            return res.status(200).json({message: "User followed successfully"});
         }
 
-        res.status(200).json({message: isFollowing ? "User unfollowed successfully" : "User followed successfully"});
     }
 
     catch (error)
@@ -126,13 +128,17 @@ export const getSuggestedUsers = async (req, res) =>
 
         ]);
 
+        if (!userFollowedByMe) return res.status(404).json({ error: "User not found" });
+
         const filteredUsers = users.filter((user) => !userFollowedByMe.following.includes(user._id));
         
         const suggestedUsers = filteredUsers.slice(0, 4);
 
-        suggestedUsers.forEach((user) => (user.password = null));
+        const publicUsers = suggestedUsers.map((user) => Object.fromEntries(
+            PUBLIC_USER_FIELDS.split(" ").filter((field) => field in user).map((field) => [field, user[field]])
+        ));
 
-        res.status(200).json(suggestedUsers);
+        res.status(200).json(publicUsers);
     }
 
     catch(error)
@@ -142,90 +148,98 @@ export const getSuggestedUsers = async (req, res) =>
     }
 }
 
-export const updateUser = async (req, res) =>
-{
-    const {fullName, email, username, currentPassword, newPassword, bio, link} = req.body;
-
-    let { profileImg, coverImg } = req.body;
-
-    const userId = req.user._id;
-
-    try
-    {
-        let user = await User.findById(userId);
-        if (!user)
-        {
-            return res.status(404).json({error: "User not found"});
-        }
-
-        if ( (!newPassword && currentPassword) || (newPassword && !currentPassword) )
-        {
-            return res.status(400).json({error: "Both the current and new passwords must be provided"});
-        }
-
-        if (currentPassword && newPassword)
-        {
-            const isMatch = await bcryptjs.compare(currentPassword, user.password);
-
-            if (!isMatch)
-            {
-                return res.status(400).json({error: "Current password is incorrect"});
-            }
-            if(newPassword.length < 6)
-            {
-                return res.status(400).json({error: "New password must be at least 6 characters long"});
-            }
-
-            const salt = await bcryptjs.genSalt(10);
-            user.password = await bcryptjs.hash(newPassword, salt);
-        }
-
-        //use cloudinary to change the profile/cover images
-        if(profileImg)
-        {
-            //if the user already has a profile image uploaded, delete it by the cloudinary id through splitting and grabbing the last element
-            if(user.profileImg)
-            {
-                await cloudinary.uploader.destroy(user.profileImg.split("/").pop().split(".")[0])
-            }
-
-            const uploadedResponse = await cloudinary.uploader.upload(profileImg)
-
-            profileImg = uploadedResponse.secure_url;
-        }
-
-        if(coverImg)
-        {
-            //if the user already has a cover image, do the same thing as destroying the profile img 
-            if(user.coverImg)
-            {
-                await cloudinary.uploader.destroy(user.coverImg.split("/").pop().split(".")[0])
-            }
-
-            const uploadedResponse = await cloudinary.uploader.upload(coverImg)
-            coverImg = uploadedResponse.secure_url;
-        }
-
-        user.fullName = fullName || user.fullName;
-        user.email = email || user.email;
-        user.username = username || user.username;
-        user.bio = bio || user.bio;
-        user.link = link || user.link;
-        user.profileImg = profileImg || user.profileImg;
-        user.coverImg = coverImg || user.coverImg;
-
-        user = await user.save();
-        
-        //set the password as null in the response
-        user.password = null;
-
-        return res.status(200).json(user);
-
+// Extract Cloudinary IDs without deleting local defaults or unrelated remote images.
+const imagePublicId = (image) => {
+    if (!image) return null;
+    try {
+        const url = new URL(image);
+        if (url.hostname !== "res.cloudinary.com") return null;
+        const uploadPath = url.pathname.split("/upload/")[1];
+        return uploadPath?.replace(/^v\d+\//, "").replace(/\.[^/.]+$/, "") || null;
+    } catch {
+        return null;
     }
+};
 
-    catch(error)
-    {
-        console.log("Error in updateUser:", error.message);
-        res.status(500).json({error: error.message});
+export const updateUser = async (req, res) => {
+    const { fullName, email, username, currentPassword, newPassword, bio, link } = req.body;
+    const uploadedImages = [];
+    let saved = false;
+
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        for (const [field, value] of Object.entries({ fullName, email, username, bio, link, currentPassword, newPassword })) {
+            if (value !== undefined && typeof value !== "string") {
+                return res.status(400).json({ error: `${field} must be text` });
+            }
+        }
+        if (fullName !== undefined && !fullName.trim()) return res.status(400).json({ error: "Full name is required" });
+        if (username !== undefined && !/^[a-zA-Z0-9_]{1,30}$/.test(username)) {
+            return res.status(400).json({ error: "Username must contain 1-30 letters, numbers or underscores" });
+        }
+        if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ error: "Invalid email format" });
+        }
+        let normalizedLink = link?.trim();
+        if (normalizedLink) {
+            try {
+                const url = new URL(/^[a-z][a-z\d+.-]*:/i.test(normalizedLink) ? normalizedLink : `https://${normalizedLink}`);
+                if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+                normalizedLink = url.href;
+            } catch {
+                return res.status(400).json({ error: "Link must be a valid HTTP or HTTPS URL" });
+            }
+        }
+
+        if (Boolean(currentPassword) !== Boolean(newPassword)) {
+            return res.status(400).json({ error: "Both the current and new passwords must be provided" });
+        }
+        if (currentPassword && newPassword) {
+            if (!(await bcryptjs.compare(currentPassword, user.password))) {
+                return res.status(400).json({ error: "Current password is incorrect" });
+            }
+            if (newPassword.length < 6) return res.status(400).json({ error: "New password must be at least 6 characters long" });
+            user.password = await bcryptjs.hash(newPassword, 10);
+        }
+
+        for (const field of ["profileImg", "coverImg"]) {
+            if (req.body[field] != null && typeof req.body[field] !== "string") {
+                return res.status(400).json({ error: "Images must be image data or a URL" });
+            }
+        }
+        const oldImages = [];
+        for (const field of ["profileImg", "coverImg"]) {
+            const image = req.body[field];
+            if (image === undefined || image === null) continue;
+            if (typeof image !== "string") return res.status(400).json({ error: "Images must be image data or a URL" });
+            const oldId = imagePublicId(user[field]);
+            if (image) {
+                const uploaded = await cloudinary.uploader.upload(image);
+                uploadedImages.push(uploaded.public_id);
+                user[field] = uploaded.secure_url;
+                if (oldId && oldId !== uploaded.public_id) oldImages.push(oldId);
+            } else {
+                user[field] = "";
+                if (oldId) oldImages.push(oldId);
+            }
+        }
+        if (fullName !== undefined) user.fullName = fullName.trim();
+        if (email !== undefined) user.email = email.trim();
+        if (username !== undefined) user.username = username;
+        if (bio !== undefined) user.bio = bio;
+        if (link !== undefined) user.link = normalizedLink;
+
+        await user.save();
+        saved = true;
+        // Failed cleanup must not turn a successfully saved profile into an error.
+        await Promise.allSettled(oldImages.map(async (id) => cloudinary.uploader.destroy(id)));
+        return res.status(200).json(ownUserResponse(user));
+    } catch (error) {
+        if (!saved) await Promise.allSettled(uploadedImages.filter(Boolean).map(async (id) => cloudinary.uploader.destroy(id)));
+        console.error("Error in updateUser:", error.message);
+        if (error.code === 11000) return res.status(409).json({ error: "Username or email is already in use" });
+        return res.status(500).json({ error: "Unable to update profile. Please try again." });
     }
 };

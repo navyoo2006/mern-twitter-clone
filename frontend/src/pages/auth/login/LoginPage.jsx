@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import XSvg from "../../../components/svgs/X";
 
-import { MdOutlineMail } from "react-icons/md";
+import { FaUser } from "react-icons/fa";
 import { MdPassword } from "react-icons/md";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +11,6 @@ import { toast } from "react-hot-toast";
 
 const LoginPage = () => 
 {
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [formData, setFormData] = useState({
 		username: "",
@@ -72,6 +71,7 @@ const LoginPage = () =>
 		},
 		onSuccess: (user) => 
 		{
+			queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== "authUser" });
 			queryClient.setQueryData(["authUser"], user);
 			toast.success("Login successful!");
 		},
@@ -103,12 +103,12 @@ const LoginPage = () =>
 
 					<h1 className='text-4xl font-extrabold text-white'>Welcome back</h1>
 
-					<label className='input input-bordered rounded flex items-center gap-2'>
-						<MdOutlineMail />
+					<label className='input input-bordered rounded flex items-center gap-2 border border-[#333639] bg-black text-neutral-200 focus-within:border-[#1d9bf0] focus-within:outline-[#1d9bf0]'>
+						<FaUser />
 
 						<input
 							type='text'
-							className='grow'
+							className='grow bg-transparent text-white placeholder:text-neutral-400'
 							placeholder='Username'
 							name='username'
 							onChange={handleInputChange}
@@ -117,13 +117,13 @@ const LoginPage = () =>
 
 					</label>
 
-					<label className='input input-bordered rounded flex items-center gap-2'>
+					<label className='input input-bordered rounded flex items-center gap-2 border border-[#333639] bg-black text-neutral-200 focus-within:border-[#1d9bf0] focus-within:outline-[#1d9bf0]'>
 
 						<MdPassword />
 
 						<input
 							type='password'
-							className='grow'
+							className='grow bg-transparent text-white placeholder:text-neutral-400'
 							placeholder='Password'
 							name='password'
 							onChange={handleInputChange}
@@ -132,7 +132,7 @@ const LoginPage = () =>
 
 					</label>
 
-					<button className='btn rounded-full btn-primary text-white'>{isPending ? "Logging in..." : "Login"}</button>
+					<button disabled={isPending} className='btn rounded-full btn-primary text-white'>{isPending ? "Logging in..." : "Login"}</button>
 					{isError && <p className='text-red-500'>{error.message}</p>}
 				</form>
 

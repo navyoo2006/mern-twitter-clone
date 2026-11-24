@@ -1,5 +1,6 @@
 import Notification from '../models/notification.model.js';
 import User from '../models/user.model.js';
+import { PUBLIC_USER_FIELDS } from '../lib/utils/userFields.js';
 import Post from "../models/post.model.js";
 
 import { v2 as cloudinary } from 'cloudinary';
@@ -10,6 +11,9 @@ export const createPost = async (req, res) =>
     {
         const { text } = req.body;
         let { img } = req.body;
+        if ((text !== undefined && typeof text !== "string") || (img != null && typeof img !== "string")) {
+            return res.status(400).json({ error: "Post text and image must be strings" });
+        }
         const userId = req.user._id.toString();
 
         const user = await User.findById(userId)
@@ -19,9 +23,9 @@ export const createPost = async (req, res) =>
             return res.status(404).json({message: "User not found"})
         }
 
-        if(!text && !img)
+        if ((!text || !text.trim()) && !img)
         {
-            return res.status(400).json({error: "Post must have text or an image"})
+            return res.status(400).json({error: "Post must have text, emoji or an image"})
         }
 
         if(img)
@@ -79,7 +83,7 @@ export const deletePost = async (req, res) =>
 
     catch(error)
     {
-        crossOriginIsolated.log("Error in deletePost controller: ", error);
+        console.error("Error in deletePost controller: ", error);
 
         res.status(500).json({ error: "Internal Server Error"});
     }
@@ -94,7 +98,7 @@ export const commentOnPost = async (req, res) =>
         const postId = req.params.id;
         const userId = req.user._id;
 
-        if(!text)
+        if (typeof text !== "string" || !text.trim())
         {
             return res.status(400).json({error: "Text field is required"});
         }
@@ -198,14 +202,14 @@ export const getAllPosts = async (req, res) =>
         (
             {
                 path: "user",
-                select: "-password",
+                select: PUBLIC_USER_FIELDS,
             }
         )
         .populate
         (
             {
                 path: "comments.user",
-                select: "-password",
+                select: PUBLIC_USER_FIELDS,
             }
         );
 
@@ -244,14 +248,14 @@ export const getLikedPosts = async (req, res) =>
         (
             {
                 path: "user",
-                select: "-password",
+                select: PUBLIC_USER_FIELDS,
             }
         )
         .populate
         (
             {
                 path: "comments.user",
-                select: "-password",
+                select: PUBLIC_USER_FIELDS,
             }
         );
 
@@ -293,14 +297,14 @@ export const getFollowingPosts = async (req, res) =>
         (
             {
                 path: "user",
-                select: "-password",
+                select: PUBLIC_USER_FIELDS,
             }
         )
         .populate
         (
             {
                 path: "comments.user",
-                select: "-password",
+                select: PUBLIC_USER_FIELDS,
             }
         );
 
@@ -341,14 +345,14 @@ export const getUserPosts = async (req, res) =>
         (
             {
                 path: "user",
-                select: "-password",
+                select: PUBLIC_USER_FIELDS,
             }
         )
         .populate
         (
             {
                 path: "comments.user",
-                select: "-password",
+                select: PUBLIC_USER_FIELDS,
             }
         );
 

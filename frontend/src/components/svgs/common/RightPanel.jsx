@@ -35,14 +35,15 @@ const RightPanel = () =>
 
 	if(suggestedUsers?.length === 0)
 	{
-		<div className='md:w-64 w-0'></div>;
+		return <div className='hidden lg:block w-72 shrink-0' />;
 	}
 
 	return (
-		<div className='hidden lg:block w-72 shrink-0 my-4'>
+		<div className='hidden lg:block w-72 shrink-0 my-4 text-white'>
 
-			<div className='bg-[#16181C] p-4 rounded-md sticky top-2'>
+			<div className='bg-[#16181C] flex flex-col gap-2 px-4 pt-2 pb-4 rounded-md sticky top-2'>
 				<p className='font-bold'>Who to follow</p>
+				{isLoading && <RightPanelSkeleton />}
 				<div className='flex flex-col gap-4'>
 
 					{suggestedUsers?.map((user) => (
@@ -68,13 +69,14 @@ const RightPanel = () =>
 											{user.fullName}
 										</span>
 
-										<span className='text-sm text-slate-500'>@{user.username}</span>
+										<span className='text-sm text-white'>@{user.username}</span>
 									</div>
 
 								</div>
 
 								<div>
 									<button
+										disabled={isPending}
 										className='btn bg-white text-black hover:bg-white hover:opacity-90 rounded-full btn-sm'
 										onClick={(e) => 
 										{

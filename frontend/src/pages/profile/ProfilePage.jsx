@@ -1,3 +1,4 @@
+import useAuthUser from "../../hooks/useAuthUser";
 import { useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -6,7 +7,6 @@ import ProfileHeaderSkeleton from "../../components/svgs/skeletons/ProfileHeader
 import Posts from "../../components/svgs/common/Posts";
 import EditProfileModal from "./EditProfileModal";
 
-import { POSTS } from "../../utils/db/dummy";
 
 import { FaArrowLeft } from "react-icons/fa6";
 import { IoCalendarOutline } from "react-icons/io5";
@@ -30,7 +30,7 @@ const ProfilePage = () =>
 
 	const { follow, isPending } = useFollow();
 
-	const { data:authUser } = useQuery({ queryKey: ["authUser"] });
+	const { data:authUser } = useAuthUser();
 
 	const { data:user, isLoading, isRefetching } = useQuery(
 	{
@@ -60,9 +60,17 @@ const ProfilePage = () =>
 
 	const {updateProfile, isUpdatingProfile } = useUpdateUserProfile();
 
-	const isMyProfile = authUser._id === user?._id;
+	const isMyProfile = authUser?._id === user?._id;
 	const memberSinceDate = formatMemberSinceDate(user?.createdAt)
-	const amIFollowing = authUser?.following.includes(user?._id);
+	const amIFollowing = authUser?.following?.includes(user?._id);
+
+	const profileLink = (() => {
+		if (!user?.link) return null;
+		try {
+			const url = new URL(/^[a-z][a-z\d+.-]*:/i.test(user.link) ? user.link : `https://${user.link}`);
+			return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+		} catch { return null; }
+	})();
 
 	const handleImgChange = (e, state) => 
     {
@@ -80,7 +88,7 @@ const ProfilePage = () =>
 
 	return (
 		<>
-			<div className='flex-[4_4_0]  border-r border-gray-700 min-h-screen '>
+			<div className='min-w-0 flex-1 border-r border-gray-700 min-h-screen text-white'>
 
 				{/* HEADER */}
 				{(isLoading || isRefetching) && <ProfileHeaderSkeleton />}
@@ -98,7 +106,7 @@ const ProfilePage = () =>
 
 								<div className='flex flex-col'>
 									<p className='font-bold text-lg'>{user?.fullName}</p>
-									<span className='text-sm text-slate-500'>{POSTS?.length} posts</span>
+									<span className='text-sm text-white'>{user.postCount ?? 0} {user.postCount === 1 ? "post" : "posts"}</span>
 								</div>
 
 							</div>
@@ -165,6 +173,7 @@ const ProfilePage = () =>
 									
                                     <button
 										className='btn btn-outline rounded-full btn-sm border-slate-500 bg-slate-800 text-slate-100 hover:border-slate-400 hover:bg-slate-700 hover:text-white'
+										disabled={isPending}
 										onClick={() => follow(user?._id)}
 									>
 										{isPending && "Loading..."}
@@ -176,11 +185,14 @@ const ProfilePage = () =>
 								{(coverImg || profileImg) && (
 									<button
 										className='btn btn-primary rounded-full btn-sm text-white px-4 ml-2'
+										disabled={isUpdatingProfile}
 										onClick={async () => 
 										{
-											await updateProfile({coverImg, profileImg })
-											setProfileImg(null);
-											setCoverImg(null);
+											try {
+												await updateProfile({coverImg, profileImg });
+												setProfileImg(null);
+												setCoverImg(null);
+											} catch { /* Keep the selected images available for retry. */ }
 										}}
 									>
 										{isUpdatingProfile ? "Updating..." : "Update"}
@@ -195,26 +207,26 @@ const ProfilePage = () =>
 								<div className='flex flex-col'>
 
 									<span className='font-bold text-lg'>{user?.fullName}</span>
-									<span className='text-sm text-slate-500'>@{user?.username}</span>
-									<span className='text-sm my-1'>{user?.bio}</span>
+									<span className='text-sm text-white'>@{user?.username}</span>
+									<span className='text-sm my-1 whitespace-pre-wrap break-words'>{user?.bio}</span>
 
 								</div>
 
 								<div className='flex gap-2 flex-wrap'>
 
-									{user?.link && (
+									{profileLink && (
 										
                                         <div className='flex gap-1 items-center '>
 											<>
-												<FaLink className='w-3 h-3 text-slate-500' />
+												<FaLink className='w-3 h-3 text-white' />
 
 												<a
-													href='https://google.com'
+													href={profileLink}
 													target='_blank'
 													rel='noreferrer'
 													className='text-sm text-blue-500 hover:underline'
 												>
-													https://google.com
+													{user.link}
 												</a>
 
 											</>
@@ -223,8 +235,8 @@ const ProfilePage = () =>
 									)}
 
 									<div className='flex gap-2 items-center'>
-										<IoCalendarOutline className='w-4 h-4 text-slate-500' />
-										<span className='text-sm text-slate-500'>
+										<IoCalendarOutline className='w-4 h-4 text-white' />
+										<span className='text-sm text-white'>
 										{memberSinceDate}
 										</span>
 									</div>
@@ -235,12 +247,12 @@ const ProfilePage = () =>
 
 									<div className='flex gap-1 items-center'>
 										<span className='font-bold text-xs'>{user?.following.length}</span>
-										<span className='text-slate-500 text-xs'>Following</span>
+										<span className='text-white text-xs'>Following</span>
 									</div>
 
 									<div className='flex gap-1 items-center'>
 										<span className='font-bold text-xs'>{user?.followers.length}</span>
-										<span className='text-slate-500 text-xs'>Followers</span>
+										<span className='text-white text-xs'>Followers</span>
 									</div>
 
 								</div>
@@ -249,7 +261,7 @@ const ProfilePage = () =>
 
 							<div className='flex w-full border-b border-gray-700 mt-4'>
 								<div
-									className='flex justify-center flex-1 p-3 hover:bg-secondary transition duration-300 relative cursor-pointer'
+									className='flex justify-center flex-1 p-3 hover:bg-white/10 transition duration-300 relative cursor-pointer'
 									onClick={() => setFeedType("posts")}
 								>
 
@@ -260,7 +272,7 @@ const ProfilePage = () =>
 								</div>
 
 								<div
-									className='flex justify-center flex-1 p-3 text-slate-500 hover:bg-secondary transition duration-300 relative cursor-pointer'
+									className='flex justify-center flex-1 p-3 text-white hover:bg-white/10 transition duration-300 relative cursor-pointer'
 									onClick={() => setFeedType("likes")}
 								>
 

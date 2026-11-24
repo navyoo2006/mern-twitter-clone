@@ -1,17 +1,19 @@
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import useUpdateUserProfile from "../../hooks/useUpdateUserProfile";
 
 const EditProfileModal = ({ authUser }) =>
 {
-	const [formData, setFormData] = useState({
-		fullName: "",
-		username: "",
-		email: "",
-		bio: "",
-		link: "",
+	const dialogRef = useRef(null);
+	const initialFormData = () => ({
+		fullName: authUser?.fullName ?? "",
+		username: authUser?.username ?? "",
+		email: authUser?.email ?? "",
+		bio: authUser?.bio ?? "",
+		link: authUser?.link ?? "",
 		newPassword: "",
 		currentPassword: "",
 	});
+	const [formData, setFormData] = useState(initialFormData);
 
 	const {updateProfile, isUpdatingProfile } = useUpdateUserProfile();
 
@@ -20,46 +22,39 @@ const EditProfileModal = ({ authUser }) =>
 		setFormData({ ...formData, [e.target.name]: e.target.value });
 	};
 
-	useEffect(() =>
-	{
-		if(authUser)
-		{
-			setFormData({
-				fullName: authUser.fullName,
-				username: authUser.username,
-				email: authUser.email,
-				bio: authUser.bio,
-				link: authUser.link,
-				newPassword: "",
-				currentPassword: "",
-			})
-		}
-
-	},
-		[authUser]
-		)
 
 	return (
 		<>
 			<button
 				className='btn btn-outline rounded-full btn-sm border-slate-500 bg-slate-800 text-slate-100 hover:border-slate-400 hover:bg-slate-700 hover:text-white'
-				onClick={() => document.getElementById("edit_profile_modal").showModal()}
+				onClick={() => { setFormData(initialFormData()); dialogRef.current.showModal(); }}
 			>
 
 				Edit profile
 
 			</button>
 			
-            <dialog id='edit_profile_modal' className='modal'>
+            <dialog ref={dialogRef} id='edit_profile_modal' className='modal'>
                 
 				<div className='modal-box border rounded-md border-[#2f3336] bg-black text-white shadow-md'>
-					<h3 className='font-bold text-lg my-3'>Update Profile</h3>
+					<form method='dialog'>
+						<button
+							className='btn btn-sm btn-circle btn-ghost absolute left-2 top-2 text-white hover:bg-neutral-800'
+							aria-label='Close update profile'
+						>
+							<span aria-hidden='true'>✕</span>
+						</button>
+					</form>
+					<h3 className='font-bold text-lg my-3 px-8'>Update Profile</h3>
 					
                     <form
 						className='flex flex-col gap-4'
-						onSubmit={(e) => {
+						onSubmit={async (e) => {
 							e.preventDefault();
-							updateProfile(formData);
+							try {
+								await updateProfile(formData);
+								dialogRef.current?.close();
+							} catch { /* The mutation displays the error and preserves the form. */ }
 						}}
 					>
 
@@ -67,7 +62,7 @@ const EditProfileModal = ({ authUser }) =>
 							<input
 								type='text'
 								placeholder='Full Name'
-								className='flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
+								className='min-w-0 flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
 								value={formData.fullName}
 								name='fullName'
 								onChange={handleInputChange}
@@ -76,7 +71,7 @@ const EditProfileModal = ({ authUser }) =>
 							<input
 								type='text'
 								placeholder='Username'
-								className='flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
+								className='min-w-0 flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
 								value={formData.username}
 								name='username'
 								onChange={handleInputChange}
@@ -88,28 +83,28 @@ const EditProfileModal = ({ authUser }) =>
 							<input
 								type='email'
 								placeholder='Email'
-								className='flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
+								className='min-w-0 flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
 								value={formData.email}
 								name='email'
 								onChange={handleInputChange}
 							/>
 
-							<textarea
-								placeholder='Bio'
-								className='flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
-								value={formData.bio}
-								name='bio'
-								onChange={handleInputChange}
-							/>
-
 						</div>
+
+						<textarea
+							placeholder='Bio'
+							className='textarea w-full min-h-24 field-sizing-content resize-none whitespace-pre-wrap [overflow-wrap:anywhere] border border-[#333639] rounded bg-black p-2 text-base leading-relaxed text-white placeholder:text-neutral-400'
+							value={formData.bio}
+							name='bio'
+							onChange={handleInputChange}
+						/>
 
 						<div className='flex flex-wrap gap-2'>
 							
                             <input
 								type='password'
 								placeholder='Current Password'
-								className='flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
+								className='min-w-0 flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
 								value={formData.currentPassword}
 								name='currentPassword'
 								onChange={handleInputChange}
@@ -118,7 +113,7 @@ const EditProfileModal = ({ authUser }) =>
 							<input
 								type='password'
 								placeholder='New Password'
-								className='flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
+								className='min-w-0 flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
 								value={formData.newPassword}
 								name='newPassword'
 								onChange={handleInputChange}
@@ -129,13 +124,13 @@ const EditProfileModal = ({ authUser }) =>
 						<input
 							type='text'
 							placeholder='Link'
-							className='flex-1 input border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
+							className='input w-full border border-[#333639] rounded bg-black p-2 text-white placeholder:text-neutral-400 input-md'
 							value={formData.link}
 							name='link'
 							onChange={handleInputChange}
 						/>
 
-						<button className='btn btn-primary rounded-full btn-sm text-white'>{isUpdatingProfile ? "Updating..." : "Update"}
+						<button disabled={isUpdatingProfile} className='btn btn-primary rounded-full btn-sm text-white'>{isUpdatingProfile ? "Updating..." : "Update"}
 
 						</button>
 					

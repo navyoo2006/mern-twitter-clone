@@ -1,9 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const useUpdateUserProfile = () => 
 {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
 
     const {mutateAsync:updateProfile, isPending:isUpdatingProfile} = useMutation(
 	{
@@ -40,15 +43,22 @@ const useUpdateUserProfile = () =>
 			}
 		},
 
-		onSuccess: () => 
+		onMutate: () => ({ userId: queryClient.getQueryData(["authUser"])?._id }),
+		onSuccess: async (user, formData, context) =>
 		{
+			const previousUser = queryClient.getQueryData(["authUser"]);
+			if (!previousUser || previousUser._id !== context.userId) return;
+			queryClient.setQueryData(["authUser"], user);
+			if (previousUser?.username !== user.username && pathname === `/profile/${previousUser?.username}`)
+			{
+				navigate(`/profile/${user.username}`, { replace: true });
+			}
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["userProfile"] }),
+				queryClient.invalidateQueries({ queryKey: ["posts"] }),
+				queryClient.invalidateQueries({ queryKey: ["suggestedUsers"] }),
+			]);
 			toast.success("Profile updated successfully");
-			Promise.all(
-			[
-				queryClient.invalidateQueries({ queryKey: ["authUser"]}),
-				queryClient.invalidateQueries({ queryKey: ["userProfile"]})
-
-			])
 		},
 
 		onError: (error) => 

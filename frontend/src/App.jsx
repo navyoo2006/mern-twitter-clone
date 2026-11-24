@@ -1,5 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import useAuthUser from "./hooks/useAuthUser";
 
 import HomePage from "./pages/auth/home/HomePage";
 import LoginPage from "./pages/auth/login/LoginPage";
@@ -15,36 +15,10 @@ import { Toaster } from "react-hot-toast";
 
 export default function App() 
 {
-  const { data:authUser, isLoading } = useQuery({
+  const { pathname } = useLocation();
+  const { data:authUser, isLoading, isError, error, refetch } = useAuthUser();
 
-    //the querykey is used to easily refer to the queries within other files
-    queryKey: ['authUser'],
-    queryFn: async () =>
-    {
-      try
-      {
-        const res = await fetch("/api/auth/me");
-        const data = await res.json();
-
-        if (data.error)
-        {
-          return null;
-        }
-
-        if (!res.ok)
-        {
-          throw new Error(data.error || "Something went wrong");
-        }
-        console.log("auth user is here:", data);
-        return data;
-      }
-      catch(error)
-      {
-        throw new Error(error.message || "Something went wrong");
-      }
-      
-    }
-  });
+  if (isError) return <div role="alert" className="mx-auto p-8 text-white">{error.message} <button type="button" className="cursor-pointer underline" onClick={() => refetch()}>Retry</button></div>;
 
   if(isLoading)
   {
@@ -54,7 +28,7 @@ export default function App()
     </div>)
   }
   return (
-    <div className='flex w-full max-w-6xl min-h-screen mx-auto'>
+    <div className='flex w-full max-w-6xl min-h-screen mx-auto text-white'>
       {/* common component since it isn't inside the routes */}
       {authUser && <Sidebar authUser={authUser} />}
       <Routes>
@@ -62,7 +36,7 @@ export default function App()
         <Route path='/login' element={!authUser ? <LoginPage /> : <Navigate to="/" />} />
         <Route path='/signup' element={!authUser ? <SignUpPage /> : <Navigate to="/" />} />
         <Route path='/notifications' element={authUser ? <NotificationPage /> : <Navigate to="/login" />} />
-        <Route path='/profile/:username' element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
+        <Route path='/profile/:username' element={authUser ? <ProfilePage key={pathname} /> : <Navigate to="/login" />} />
 
       </Routes>
       {authUser && <RightPanel />}

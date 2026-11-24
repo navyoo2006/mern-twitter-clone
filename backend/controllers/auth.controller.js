@@ -1,11 +1,16 @@
 import { generateTokenAndSetCookie } from "../lib/utils/generateToken.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
+import { ownUserResponse } from "../lib/utils/userFields.js";
 
 export const signup = async (req, res) => {
     try
     {
         const { fullName, username, email, password } = req.body; //take info from the request body
+        if (![fullName, username, email, password].every((value) => typeof value === "string" && value.trim())) {
+            return res.status(400).json({ error: "All fields are required" });
+        }
+        if (!/^[a-zA-Z0-9_]{1,30}$/.test(username)) return res.status(400).json({ error: "Username must contain 1-30 letters, numbers or underscores" });
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; //check if the emails valid
 
         if (!emailRegex.test(email))
@@ -44,19 +49,9 @@ export const signup = async (req, res) => {
 
         if (newUser)
         {
-            generateTokenAndSetCookie(newUser._id, res);
             await newUser.save();
-            res.status(201).json
-           ({  
-                _id: newUser._id,
-                fullName: newUser.fullName,
-                username: newUser.username,
-                email: newUser.email,
-                followers: newUser.followers,
-                following: newUser.following,
-                profileImg: newUser.profileImg,
-                coverImg: newUser.coverImg,
-           });
+            generateTokenAndSetCookie(newUser._id, res);
+            return res.status(201).json(ownUserResponse(newUser));
         }
         else
         {
@@ -76,6 +71,9 @@ export const login = async (req, res) => {
     try
     {
         const {username, password} = req.body;
+        if (typeof username !== "string" || typeof password !== "string" || !username || !password) {
+            return res.status(400).json({ error: "Username and password are required" });
+        }
         const user = await User.findOne({username});
         const isPasswordCorrect = await bcrypt.compare(password, user?.password || ""); //compare the password from the request body with the hashed password in the database to ensure that it's correct 
 
@@ -86,17 +84,7 @@ export const login = async (req, res) => {
 
         generateTokenAndSetCookie(user._id, res);
 
-        res.status(200).json
-        ({
-            _id: user._id,
-            fullName : user.fullName,
-            username: user.username,
-            email: user.email,
-            followers: user.followers,
-            following: user.following,
-            profileImg: user.profileImg,
-            coverImg: user.coverImg,
-        });
+        return res.status(200).json(ownUserResponse(user));
 
     }
     catch(error)

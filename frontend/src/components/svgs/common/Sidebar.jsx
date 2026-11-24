@@ -5,12 +5,11 @@ import { toast } from "react-hot-toast";
 import { MdHomeFilled } from "react-icons/md";
 import { IoNotifications } from "react-icons/io5";
 import { FaUser } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { BiLogOut } from "react-icons/bi";
 
 const Sidebar = ({ authUser }) => 
 {
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const {mutate:logout} = useMutation({
 		mutationFn: async () => {
@@ -35,9 +34,11 @@ const Sidebar = ({ authUser }) =>
 			}
 		},
 
-		onSuccess: () => 
+		onSuccess: async () =>
 		{
+			await queryClient.cancelQueries();
 			queryClient.setQueryData(["authUser"], null);
+			queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== "authUser" });
 			toast.success("Logged out successfully");
 		},
 
@@ -49,7 +50,7 @@ const Sidebar = ({ authUser }) =>
 	});
 
 	return (
-		<div className='w-20 shrink-0 md:w-64'>
+		<div className='w-20 shrink-0 text-white md:w-64'>
 
 			<div className='sticky top-0 left-0 h-screen flex flex-col border-r border-gray-700 w-20 md:w-full'>
 
@@ -110,9 +111,9 @@ const Sidebar = ({ authUser }) =>
 						<div className='flex justify-between flex-1'>
 							<div className='hidden md:block'>
 								<p className='text-white font-bold text-sm w-20 truncate'>{authUser?.fullName}</p>
-								<p className='text-slate-500 text-sm'>@{authUser?.username}</p>
+								<p className='text-white text-sm'>@{authUser?.username}</p>
 							</div>
-							<BiLogOut className='w-5 h-5 cursor-pointer' 
+							<BiLogOut role='button' aria-label='Log out' tabIndex={0} className='w-5 h-5 cursor-pointer'
 								onClick={(e) => 
 								{
 									e.preventDefault();

@@ -16,7 +16,7 @@ const HomePage = () =>
 
 					<div
 						className={
-							"flex justify-center flex-1 p-3 hover:bg-secondary transition duration-300 cursor-pointer relative"
+							"flex justify-center flex-1 p-3 hover:bg-white/10 transition duration-300 cursor-pointer relative"
 						}
 						onClick={() => setFeedType("forYou")}
 					>
@@ -29,7 +29,7 @@ const HomePage = () =>
 					</div>
 
 					<div
-						className='flex justify-center flex-1 p-3 hover:bg-secondary transition duration-300 cursor-pointer relative'
+						className='flex justify-center flex-1 p-3 hover:bg-white/10 transition duration-300 cursor-pointer relative'
 						onClick={() => setFeedType("following")}
 					>
 
