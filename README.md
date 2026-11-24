@@ -2,6 +2,10 @@
 
 A full-stack social app inspired by X, written in JavaScript with MongoDB, Express, React, and Node.js (the MERN stack). Users can edit their profiles, publish posts with images and emoji, and like or comment on posts. The app includes notifications and separate feeds for all posts and posts from accounts they follow.
 
+[Live demo on Render](https://mern-twitter-clone-8vtm.onrender.com)
+
+![Sofia Chen publishes a post with a camera emoji, reads replies, clears notifications, follows Daniel, switches to the Following feed, and opens her profile editor and Likes tab.](docs/demo.gif)
+
 ## Tech stack
 
 - **React, React Router, and Vite** power the frontend. Tailwind CSS and daisyUI handle styling and components. React Icons provides icons, and React Hot Toast shows success and error messages.
@@ -39,12 +43,3 @@ npm run test:e2e --prefix frontend
 ```
 
 `npm test` builds the frontend and runs the backend tests. Playwright tests the built app with mock API responses. On Windows, Playwright uses installed Microsoft Edge. On other platforms, run `npx playwright install chromium` from `frontend` before the browser tests.
-
-## Deploy to Render
-
-Create a [Render Web Service](https://render.com/docs/web-services) from the GitHub repository and leave the root directory blank. Express serves the built React app and the API from the same service.
-
-- Set the build command to `npm run build`.
-- Set the start command to `npm start`.
-
-In the Render dashboard, set [`NODE_VERSION=22.x`](https://render.com/docs/node-version) and `NODE_ENV=production`. Add `MONGO_URI`, `JWT_SECRET`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` using the values for your deployment. Allow the service to connect to MongoDB. Render provides `PORT`.
